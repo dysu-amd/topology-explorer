@@ -303,6 +303,61 @@ button {
   text-transform: uppercase;
 }
 
+.feature-config-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem 0.8rem;
+}
+
+.platform-toggle {
+  display: inline-flex;
+  margin: 0;
+  padding: 0.16rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+}
+
+.platform-toggle legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.platform-toggle label {
+  border-radius: 4px;
+  padding: 0.24rem 0.52rem;
+  color: var(--muted);
+  font-size: 0.69rem;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.platform-toggle label:has(input:checked) {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.platform-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.platform-toggle label:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .feature-config textarea {
   width: 100%;
   min-height: 3.65rem;

@@ -31,13 +31,29 @@ To use GitHub Pages without a deployment workflow, place the files in the
 repository's `docs/` directory. A GitHub Actions Pages deployment can publish
 this directory directly without moving it.
 
+## Test
+
+Run the topology contract tests with:
+
+```bash
+npm test
+```
+
+The tests download the latest `BUILD_TOPOLOGY.toml` from TheRock's `main`
+branch, parse it with both the browser parser and Python's standard-library
+`tomllib`, then compare the generated graph with a Python oracle matching
+TheRock's current `build_topology.py` schema and defaults. Network access is
+therefore required when running the suite.
+
 ## CMake feature preview
 
 Paste one or more `-DTHEROCK_ENABLE_*=ON|OFF` flags into the feature panel to
-see the artifact components that the topology selects. The preview models a
-fresh Linux x86_64 configuration: it applies TheRock's current feature-group
-defaults, explicit artifact feature flags, and the implicit artifact dependency
-closure performed by `therock_finalize_features()`.
+see the artifact components that the topology selects. Use the platform toggle
+to compare fresh Linux and Windows x86_64 configurations. The preview applies
+TheRock's current feature-group defaults, explicit artifact feature flags, and
+the implicit artifact dependency closure performed by
+`therock_finalize_features()`. Components unavailable on the selected platform
+are omitted from the graph.
 
 It intentionally does not interpret other CMake flags, an existing CMake cache,
 toolchain detection, or project-specific configuration outside the artifact

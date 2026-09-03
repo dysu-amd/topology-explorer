@@ -10,6 +10,7 @@
     <title>TheRock Build Topology Explorer</title>
     <link rel="stylesheet" href="styles.css" />
     <script defer src="toml-parser.js"></script>
+    <script defer src="topology-model.js"></script>
     <script defer src="app.js"></script>
   </head>
   <body>
@@ -89,7 +90,14 @@
 
         <section class="feature-config" aria-labelledby="feature-config-heading">
           <div class="feature-config-input">
-            <label id="feature-config-heading" for="cmake-flags">CMake feature flags</label>
+            <div class="feature-config-heading-row">
+              <label id="feature-config-heading" for="cmake-flags">CMake feature flags</label>
+              <fieldset class="platform-toggle" id="preview-platform">
+                <legend>Configuration platform</legend>
+                <label><input type="radio" name="preview-platform" value="linux" checked /> Linux</label>
+                <label><input type="radio" name="preview-platform" value="windows" /> Windows</label>
+              </fieldset>
+            </div>
             <textarea
               id="cmake-flags"
               rows="2"
@@ -97,7 +105,7 @@
               placeholder="-DTHEROCK_ENABLE_ALL=OFF -DTHEROCK_ENABLE_CORE=ON"
             ></textarea>
             <p>
-              Supports <code>-DTHEROCK_ENABLE_*=ON|OFF</code> only. Results model a fresh Linux x86_64 configuration.
+              Supports <code>-DTHEROCK_ENABLE_*=ON|OFF</code> only. Results model a fresh <span id="preview-platform-description">Linux</span> x86_64 configuration.
             </p>
           </div>
           <div class="feature-config-actions">

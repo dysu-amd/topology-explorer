@@ -47,6 +47,8 @@
   const evaluateFlagsButton = document.querySelector("#evaluate-flags");
   const resetFlagsButton = document.querySelector("#reset-flags");
   const featureConfigResult = document.querySelector("#feature-config-result");
+  const previewPlatformInputs = document.querySelectorAll('input[name="preview-platform"]');
+  const previewPlatformDescription = document.querySelector("#preview-platform-description");
 
   if (!data) {
     detailsContent.innerHTML =
@@ -74,7 +76,6 @@
   };
   const ALL_NODE_KINDS = Object.keys(NODE_KIND_LABELS);
   const ALL_EDGE_KINDS = Object.keys(EDGE_KIND_LABELS);
-  const PREVIEW_PLATFORM = "linux";
   const FEATURE_GROUP_DEFAULTS = Object.freeze({
     ALL: true,
     CORE: "ALL",
@@ -137,86 +138,6 @@
     }
   }
 
-  function topologyToGraph(topology, sourceFile) {
-    const nodes = [];
-    const edges = [];
-    const addNode = (nodeId, kind, name, fields) => {
-      nodes.push({
-        id: nodeId,
-        kind,
-        name,
-        description: fields.description ?? "",
-        fields,
-      });
-    };
-
-    for (const [name, fields] of Object.entries(topology.source_sets ?? {})) {
-      addNode(`source:${name}`, "source-set", name, fields);
-    }
-    for (const [name, fields] of Object.entries(topology.artifact_groups ?? {})) {
-      addNode(`group:${name}`, "artifact-group", name, fields);
-      for (const dependency of fields.artifact_group_deps ?? []) {
-        edges.push({
-          source: `group:${dependency}`,
-          target: `group:${name}`,
-          kind: "group-dependency",
-        });
-      }
-    }
-    for (const [name, fields] of Object.entries(topology.artifacts ?? {})) {
-      const artifactFields = {
-        ...fields,
-        effective_feature_name:
-          fields.feature_name ?? name.toUpperCase().replaceAll("-", "_"),
-        effective_feature_group:
-          fields.feature_group ??
-          fields.artifact_group.toUpperCase().replaceAll("-", "_"),
-      };
-      addNode(`artifact:${name}`, "artifact", name, artifactFields);
-      edges.push({
-        source: `group:${fields.artifact_group}`,
-        target: `artifact:${name}`,
-        kind: "group-membership",
-      });
-      for (const dependency of fields.artifact_deps ?? []) {
-        edges.push({
-          source: `artifact:${dependency}`,
-          target: `artifact:${name}`,
-          kind: "artifact-dependency",
-        });
-      }
-    }
-    for (const [name, fields] of Object.entries(topology.build_stages ?? {})) {
-      addNode(`stage:${name}`, "build-stage", name, fields);
-      const stageSourceSets = new Set();
-      for (const group of fields.artifact_groups ?? []) {
-        for (const sourceSet of topology.artifact_groups?.[group]?.source_sets ?? []) {
-          stageSourceSets.add(sourceSet);
-        }
-      }
-      for (const sourceSet of stageSourceSets) {
-        edges.push({
-          source: `source:${sourceSet}`,
-          target: `stage:${name}`,
-          kind: "source-requirement",
-        });
-      }
-      for (const group of fields.artifact_groups ?? []) {
-        edges.push({
-          source: `stage:${name}`,
-          target: `group:${group}`,
-          kind: "stage-membership",
-        });
-      }
-    }
-
-    return {
-      metadata: { ...(topology.metadata ?? {}), source_file: sourceFile },
-      nodes,
-      edges,
-    };
-  }
-
   const nodeById = new Map(data.nodes.map((node) => [node.id, node]));
   const artifactNodes = data.nodes.filter((node) => node.kind === "artifact");
   const positions = new Map();
@@ -228,6 +149,7 @@
     query: "",
     showFullSelectionGraph: true,
     buildSelection: null,
+    previewPlatform: "linux",
     visibleNodeKinds: new Set(ALL_NODE_KINDS),
     visibleEdgeKinds: new Set(ALL_EDGE_KINDS),
     panX: 0,
@@ -306,11 +228,24 @@
     );
   }
 
-  function ineffectiveFlagWarning(name, value, selection) {
+  function ineffectiveFlagWarning(name, value, selection, comparison) {
     const artifact = artifactNodes.find(
       (candidate) => name === `THEROCK_ENABLE_${featureNameForArtifact(candidate)}`,
     );
     const result = artifact ? selection.artifacts.get(artifact.name) : null;
+    const comparisonResult = artifact
+      ? comparison.artifacts.get(artifact.name)
+      : null;
+    if (result?.status === "unavailable") {
+      return `${name}=${value ? "ON" : "OFF"} has no effect on the final artifact selection because ${artifact.name} is not supported on ${platformDisplayName()}.`;
+    }
+    if (
+      value &&
+      state.previewPlatform === "linux" &&
+      comparisonResult?.enabled
+    ) {
+      return `${name}=ON has no effect on the final artifact selection because ${artifact.name} is already enabled elsewhere.`;
+    }
     if (!value && result?.enabled && result.requiredBy.size > 0) {
       const requiredBy = [...result.requiredBy].sort().join(", ");
       return `${name}=OFF has no effect: ${artifact.name} remains enabled because ${requiredBy} requires it.`;
@@ -337,7 +272,9 @@
         ([artifactName, result]) => result.enabled !== comparison.artifacts.get(artifactName).enabled,
       );
       if (!hasEffect) {
-        warnings.push(ineffectiveFlagWarning(name, value, selection));
+        warnings.push(
+          ineffectiveFlagWarning(name, value, selection, comparison),
+        );
       }
     }
     return selection;
@@ -373,8 +310,8 @@
       const optionName = `THEROCK_ENABLE_${featureName}`;
       const isExplicit = flags.has(optionName);
       const isPlatformUnavailable =
-        (artifact.fields.platform && artifact.fields.platform !== PREVIEW_PLATFORM) ||
-        (artifact.fields.disable_platforms ?? []).includes(PREVIEW_PLATFORM);
+        (artifact.fields.platform && artifact.fields.platform !== state.previewPlatform) ||
+        (artifact.fields.disable_platforms ?? []).includes(state.previewPlatform);
       const isEnabled = isPlatformUnavailable
         ? false
         : isExplicit
@@ -389,7 +326,7 @@
             ? "enabled"
             : "disabled",
         reason: isPlatformUnavailable
-          ? `Unavailable on ${PREVIEW_PLATFORM}`
+          ? `Unavailable on ${platformDisplayName()}`
           : isExplicit
           ? `${optionName}=${isEnabled ? "ON" : "OFF"}`
           : `THEROCK_ENABLE_${featureGroup}=${isEnabled ? "ON" : "OFF"}`,
@@ -415,7 +352,6 @@
           continue;
         }
         if (dependency.status === "unavailable") {
-          warnings.push(`${dependencyName} is unavailable on ${PREVIEW_PLATFORM}.`);
           continue;
         }
         dependency.requiredBy.add(artifactName);
@@ -702,7 +638,14 @@
   }
 
   function isNodeVisible(node) {
-    return state.visibleNodeKinds.has(node.kind);
+    const isDirectlyUnavailable =
+      (node.fields.platform && node.fields.platform !== state.previewPlatform) ||
+      (node.fields.disable_platforms ?? []).includes(state.previewPlatform);
+    return (
+      state.visibleNodeKinds.has(node.kind) &&
+      !isDirectlyUnavailable &&
+      buildStateForNode(node)?.status !== "unavailable"
+    );
   }
 
   function isEdgeVisible(edge) {
@@ -941,7 +884,7 @@
     detailsContent.innerHTML = `
       <span class="detail-kind build-selection">Feature preview</span>
       <h3 class="detail-title">Build selection</h3>
-      <p class="detail-description">Fresh Linux x86_64 configuration evaluated from <code>THEROCK_ENABLE_*</code> flags.</p>
+      <p class="detail-description">Fresh ${escapeHtml(platformDisplayName())} x86_64 configuration evaluated from <code>THEROCK_ENABLE_*</code> flags.</p>
       ${previewWarningsMarkup()}
       <section class="detail-section">
         <h3>Components to build (${built.length})</h3>
@@ -1080,6 +1023,22 @@
     updateGraphPresentation();
   }
 
+  function platformDisplayName() {
+    return state.previewPlatform === "windows" ? "Windows" : "Linux";
+  }
+
+  function setPreviewPlatform(platform) {
+    state.previewPlatform = platform;
+    previewPlatformDescription.textContent = platformDisplayName();
+    applyFeatureFlags();
+    if (state.selectedId && !isNodeVisible(nodeById.get(state.selectedId))) {
+      state.selectedId = null;
+      renderDetails(null);
+      updateGraphPresentation();
+    }
+    fitGraph();
+  }
+
   function graphPoint(event) {
     const point = svg.createSVGPoint();
     point.x = event.clientX;
@@ -1181,7 +1140,9 @@
     if (event.key !== "Enter") {
       return;
     }
-    const matchingNode = data.nodes.find(nodeMatchesQuery);
+    const matchingNode = data.nodes.find(
+      (node) => isNodeVisible(node) && nodeMatchesQuery(node),
+    );
     if (matchingNode) {
       selectNode(matchingNode.id);
     }
@@ -1193,6 +1154,13 @@
   resetFlagsButton.addEventListener("click", () => {
     cmakeFlagsInput.value = "";
     applyFeatureFlags();
+  });
+  previewPlatformInputs.forEach((input) => {
+    input.addEventListener("change", () => {
+      if (input.checked) {
+        setPreviewPlatform(input.value);
+      }
+    });
   });
   cmakeFlagsInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
