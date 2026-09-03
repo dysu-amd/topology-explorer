@@ -150,7 +150,8 @@ code {
   flex: 1 1 18rem;
 }
 
-input[type="search"] {
+input[type="search"],
+.topology-source-control input {
   width: 100%;
   height: 2.3rem;
   border: 1px solid var(--border);
@@ -162,11 +163,44 @@ input[type="search"] {
   font-size: 0.82rem;
 }
 
-input[type="search"]::placeholder {
+input[type="search"]::placeholder,
+.topology-source-control input::placeholder {
   color: var(--subtle);
 }
 
+.topology-source-control {
+  display: grid;
+  flex: 0 1 19rem;
+  gap: 0.25rem;
+}
+
+.topology-source-control label {
+  color: var(--subtle);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.topology-source-control > div {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.topology-source-control input {
+  min-width: 0;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+}
+
+.topology-source-control p {
+  color: var(--subtle);
+  font-size: 0.64rem;
+  line-height: 1.3;
+}
+
 input[type="search"]:focus-visible,
+.topology-source-control input:focus-visible,
 textarea:focus-visible,
 button:focus-visible,
 .relationship-link:focus-visible {
@@ -434,7 +468,7 @@ button {
 
 .graph-node .node-kind {
   fill: #57606a;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -443,7 +477,7 @@ button {
 
 .graph-node .node-name {
   fill: var(--text);
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 700;
   pointer-events: none;
 }

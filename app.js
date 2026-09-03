@@ -1,9 +1,37 @@
 (async () => {
   "use strict";
 
-  const liveTopologyUrl =
-    "https://raw.githubusercontent.com/ROCm/TheRock/main/BUILD_TOPOLOGY.toml";
-  const loadedTopology = await loadTopologyData(liveTopologyUrl);
+  const DEFAULT_TOPOLOGY_REF = "main";
+  const topologySourceForm = document.querySelector("#topology-source-form");
+  const topologyShaInput = document.querySelector("#topology-sha");
+  const requestedTopologyRef = topologyRefFromLocation();
+  topologyShaInput.value = requestedTopologyRef.sha ?? "";
+
+  topologySourceForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const sha = topologyShaInput.value.trim();
+    if (sha && !isCommitSha(sha)) {
+      topologyShaInput.setCustomValidity("Enter a 7–64 character hexadecimal commit SHA.");
+      topologyShaInput.reportValidity();
+      return;
+    }
+    topologyShaInput.setCustomValidity("");
+
+    const url = new URL(window.location.href);
+    if (sha) {
+      url.searchParams.set("sha", sha);
+    } else {
+      url.searchParams.delete("sha");
+    }
+    window.location.assign(url);
+  });
+
+  const loadedTopology = requestedTopologyRef.error
+    ? { data: null, error: requestedTopologyRef.error }
+    : await loadTopologyData(
+        topologyUrlForRef(requestedTopologyRef.ref),
+        requestedTopologyRef.ref,
+      );
   const data = loadedTopology.data;
   const svg = document.querySelector("#topology-graph");
   const viewport = document.querySelector("#viewport");
@@ -64,7 +92,30 @@
     WSL: false,
   });
 
-  async function loadTopologyData(url) {
+  function isCommitSha(value) {
+    return /^[0-9a-f]{7,64}$/i.test(value);
+  }
+
+  function topologyRefFromLocation() {
+    const sha = new URLSearchParams(window.location.search).get("sha")?.trim();
+    if (!sha) {
+      return { ref: DEFAULT_TOPOLOGY_REF, sha: "" };
+    }
+    if (!isCommitSha(sha)) {
+      return {
+        ref: DEFAULT_TOPOLOGY_REF,
+        sha,
+        error: "The requested topology SHA must be 7–64 hexadecimal characters.",
+      };
+    }
+    return { ref: sha, sha };
+  }
+
+  function topologyUrlForRef(ref) {
+    return `https://raw.githubusercontent.com/ROCm/TheRock/${ref}/BUILD_TOPOLOGY.toml`;
+  }
+
+  async function loadTopologyData(url, ref) {
     try {
       if (typeof window.parseTopologyToml !== "function") {
         throw new Error("The local TOML parser did not load");
@@ -75,13 +126,13 @@
       }
       const topology = window.parseTopologyToml(await response.text());
       return {
-        data: topologyToGraph(topology, "ROCm/TheRock main"),
+        data: topologyToGraph(topology, `ROCm/TheRock ${ref}`),
       };
     } catch (error) {
       console.warn("Could not load the live BUILD_TOPOLOGY.toml:", error);
       return {
         data: null,
-        error: `Could not load BUILD_TOPOLOGY.toml from TheRock main: ${error.message}`,
+        error: `Could not load BUILD_TOPOLOGY.toml from TheRock ${ref}: ${error.message}`,
       };
     }
   }

@@ -27,6 +27,25 @@
     <main class="explorer">
       <section class="graph-panel" aria-label="Build topology dependency graph">
         <div class="controls" aria-label="Graph controls">
+          <form class="topology-source-control" id="topology-source-form">
+            <label for="topology-sha">Topology commit SHA</label>
+            <div>
+              <input
+                id="topology-sha"
+                name="sha"
+                type="text"
+                inputmode="text"
+                autocomplete="off"
+                spellcheck="false"
+                pattern="[0-9a-fA-F]{7,64}"
+                placeholder="main (latest)"
+                aria-describedby="topology-sha-help"
+              />
+              <button class="button-secondary" type="submit">Load</button>
+            </div>
+            <p id="topology-sha-help">Enter a 7–64 character commit SHA, or leave blank for <code>main</code>.</p>
+          </form>
+
           <label class="search-control">
             <span class="visually-hidden">Find an item</span>
             <input

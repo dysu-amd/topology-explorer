@@ -5,6 +5,12 @@ On page load it fetches the current topology from TheRock's `main` branch. The
 left pane is an interactive DAG; the right pane shows the selected entity's
 metadata and direct relationships.
 
+To inspect a historical topology, enter its Git commit SHA in **Topology commit
+SHA** and select **Load**. The explorer accepts 7–64 hexadecimal characters,
+loads `BUILD_TOPOLOGY.toml` at that exact commit, and records the selection in
+the page URL as `?sha=<commit>` so it can be shared or bookmarked. Leave the
+field empty to return to the latest `main` topology.
+
 ## Run locally
 
 The explorer has no application server or build-time framework dependency. It
