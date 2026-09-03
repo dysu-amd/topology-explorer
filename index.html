@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="An interactive visualization of TheRock's build topology."
+    />
+    <title>TheRock Build Topology Explorer</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="toml-parser.js"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div>
+        <p class="eyebrow">ROCm / TheRock</p>
+        <h1>Build Topology Explorer</h1>
+      </div>
+      <p class="header-description">
+        Browse the build, artifact, and source-checkout relationships declared in
+        <code>BUILD_TOPOLOGY.toml</code>.
+      </p>
+    </header>
+
+    <main class="explorer">
+      <section class="graph-panel" aria-label="Build topology dependency graph">
+        <div class="controls" aria-label="Graph controls">
+          <label class="search-control">
+            <span class="visually-hidden">Find an item</span>
+            <input
+              id="search"
+              type="search"
+              autocomplete="off"
+              placeholder="Find a source set, group, artifact, or stage"
+            />
+          </label>
+
+          <fieldset class="filter-set" id="node-filters">
+            <legend>Show nodes</legend>
+            <label><input type="checkbox" value="source-set" checked /> Sources</label>
+            <label><input type="checkbox" value="build-stage" checked /> Stages</label>
+            <label><input type="checkbox" value="artifact-group" checked /> Groups</label>
+            <label><input type="checkbox" value="artifact" checked /> Artifacts</label>
+          </fieldset>
+
+          <fieldset class="filter-set relationship-filters" id="edge-filters">
+            <legend>Show links</legend>
+            <label><input type="checkbox" value="source-requirement" checked /> Source</label>
+            <label><input type="checkbox" value="stage-membership" checked /> Stage</label>
+            <label><input type="checkbox" value="group-dependency" checked /> Group dependency</label>
+            <label><input type="checkbox" value="group-membership" checked /> Group member</label>
+            <label><input type="checkbox" value="artifact-dependency" checked /> Artifact dependency</label>
+          </fieldset>
+
+          <fieldset class="filter-set" id="selection-options">
+            <legend>Selection</legend>
+            <label>
+              <input id="full-selection-graph" type="checkbox" checked />
+              Full upstream/downstream graph
+            </label>
+          </fieldset>
+
+          <div class="view-actions">
+            <button class="button-secondary" id="fit-graph" type="button">Fit graph</button>
+            <button class="button-secondary" id="reset-filters" type="button">Reset</button>
+          </div>
+        </div>
+
+        <section class="feature-config" aria-labelledby="feature-config-heading">
+          <div class="feature-config-input">
+            <label id="feature-config-heading" for="cmake-flags">CMake feature flags</label>
+            <textarea
+              id="cmake-flags"
+              rows="2"
+              spellcheck="false"
+              placeholder="-DTHEROCK_ENABLE_ALL=OFF -DTHEROCK_ENABLE_CORE=ON"
+            ></textarea>
+            <p>
+              Supports <code>-DTHEROCK_ENABLE_*=ON|OFF</code> only. Results model a fresh Linux x86_64 configuration.
+            </p>
+          </div>
+          <div class="feature-config-actions">
+            <button class="button-primary" id="evaluate-flags" type="button">Evaluate</button>
+            <button class="button-secondary" id="reset-flags" type="button">Use defaults</button>
+            <output id="feature-config-result" aria-live="polite"></output>
+          </div>
+        </section>
+
+        <div class="legend" aria-label="Graph legend">
+          <span class="legend-item source-set"><i></i>Source set</span>
+          <span class="legend-item build-stage"><i></i>Build stage</span>
+          <span class="legend-item artifact-group"><i></i>Artifact group</span>
+          <span class="legend-item artifact"><i></i>Artifact</span>
+          <span class="legend-note">Scroll to zoom · drag empty space to pan · click a node for details</span>
+        </div>
+
+        <div class="graph-frame" id="graph-frame">
+          <svg
+            id="topology-graph"
+            role="img"
+            aria-label="Build topology dependency graph"
+            aria-describedby="graph-description"
+            viewBox="0 0 1600 900"
+            preserveAspectRatio="xMidYMid meet"
+          >
+            <desc id="graph-description">
+              A directed graph of source sets, artifact groups, artifacts, and build stages.
+            </desc>
+            <defs>
+              <marker id="arrow-source" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 8 4 L 0 8 z" /></marker>
+              <marker id="arrow-group" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 8 4 L 0 8 z" /></marker>
+              <marker id="arrow-member" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 8 4 L 0 8 z" /></marker>
+              <marker id="arrow-artifact" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 8 4 L 0 8 z" /></marker>
+              <marker id="arrow-stage" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 8 4 L 0 8 z" /></marker>
+            </defs>
+            <g id="viewport">
+              <g id="edges"></g>
+              <g id="nodes"></g>
+            </g>
+          </svg>
+          <p class="graph-status" id="graph-status" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <aside class="details-panel" aria-labelledby="details-heading">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Selected item</p>
+            <h2 id="details-heading">Details</h2>
+          </div>
+        </div>
+        <div class="details-content" id="details-content" tabindex="-1"></div>
+      </aside>
+    </main>
+  </body>
+</html>

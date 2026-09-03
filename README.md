@@ -1,0 +1,53 @@
+# TheRock Build Topology Explorer
+
+A framework-free, static visualization of TheRock's `BUILD_TOPOLOGY.toml`.
+On page load it fetches the current topology from TheRock's `main` branch. The
+left pane is an interactive DAG; the right pane shows the selected entity's
+metadata and direct relationships.
+
+## Run locally
+
+The explorer has no application server or build-time framework dependency. It
+can be deployed as this directory to GitHub Pages. On each load, it retrieves
+the current topology from `raw.githubusercontent.com`, which allows
+cross-origin browser requests. An internet connection is required.
+
+You can open `index.html` directly in a browser. A local static server is also
+useful when testing:
+
+```bash
+python3 -m http.server 8000
+```
+
+Then open <http://localhost:8000>.
+
+To use GitHub Pages without a deployment workflow, place the files in the
+repository's `docs/` directory. A GitHub Actions Pages deployment can publish
+this directory directly without moving it.
+
+## CMake feature preview
+
+Paste one or more `-DTHEROCK_ENABLE_*=ON|OFF` flags into the feature panel to
+see the artifact components that the topology selects. The preview models a
+fresh Linux x86_64 configuration: it applies TheRock's current feature-group
+defaults, explicit artifact feature flags, and the implicit artifact dependency
+closure performed by `therock_finalize_features()`.
+
+It intentionally does not interpret other CMake flags, an existing CMake cache,
+toolchain detection, or project-specific configuration outside the artifact
+topology.
+
+## Graph relationships
+
+The graph's left-to-right flow is upstream to downstream:
+
+- **Source requirement:** source set → build stage
+- **Group dependency:** prerequisite artifact group → dependent group
+- **Group membership:** artifact group → artifact
+- **Artifact dependency:** prerequisite artifact → dependent artifact
+- **Build stage membership:** build stage → artifact group
+
+Source requirements are derived from the union of source sets declared by a
+stage's artifact groups. Build stages are the CI/sharding owners of their
+artifact groups, not a declaration of execution order. The graph can be panned
+with the mouse and zoomed with the scroll wheel.
