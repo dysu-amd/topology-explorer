@@ -54,7 +54,8 @@ to compare fresh Linux and Windows x86_64 configurations. The preview applies
 TheRock's current feature-group defaults, explicit artifact feature flags, and
 the implicit artifact dependency closure performed by
 `therock_finalize_features()`. Components unavailable on the selected platform
-are omitted from the graph.
+are omitted from the graph. Supplied `-D` flags that cannot be parsed or are not
+modeled are listed separately below the flag warnings.
 
 It intentionally does not interpret other CMake flags, an existing CMake cache,
 toolchain detection, or project-specific configuration outside the artifact

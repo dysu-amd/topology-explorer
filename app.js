@@ -192,29 +192,43 @@
   function parseFeatureFlags(input) {
     const flags = new Map();
     const warnings = [];
+    const excludedFlags = [];
     const tokens = input.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? [];
     for (const token of tokens) {
+      if (!token.startsWith("-D")) {
+        continue;
+      }
       if (
         !token.startsWith("-DTHEROCK_ENABLE_") &&
         !token.startsWith("-DTHEROCK_FLAG_")
       ) {
+        excludedFlags.push({
+          flag: token,
+          reason: "This flag is not included in the topology preview logic.",
+        });
         continue;
       }
       const assignment = token.slice(2);
       const equalsIndex = assignment.indexOf("=");
       if (equalsIndex < 0) {
-        warnings.push(`Ignored ${token}: CMake feature flags need =ON or =OFF.`);
+        excludedFlags.push({
+          flag: token,
+          reason: "Expected a CMake assignment with =ON or =OFF.",
+        });
         continue;
       }
       const name = assignment.slice(0, equalsIndex).split(":", 1)[0];
       const value = parseBoolean(assignment.slice(equalsIndex + 1));
       if (value === null) {
-        warnings.push(`Ignored ${token}: expected a CMake boolean value.`);
+        excludedFlags.push({
+          flag: token,
+          reason: "Expected a CMake boolean value.",
+        });
         continue;
       }
       flags.set(name, value);
     }
-    return { flags, warnings };
+    return { excludedFlags, flags, warnings };
   }
 
   function featureNameForArtifact(artifact) {
@@ -273,10 +287,14 @@
   }
 
   function evaluateBuildSelection(input) {
-    const { flags, warnings } = parseFeatureFlags(input);
-    for (const name of flags.keys()) {
+    const { excludedFlags, flags, warnings } = parseFeatureFlags(input);
+    for (const [name, value] of flags) {
       if (!isModeledFeatureFlag(name)) {
-        warnings.push(`${name} does not select a topology artifact in this preview.`);
+        excludedFlags.push({
+          flag: `-D${name}=${value ? "ON" : "OFF"}`,
+          reason: "This flag is not included in the topology preview logic.",
+        });
+        flags.delete(name);
       }
     }
     const selection = resolveBuildSelection(flags, warnings);
@@ -303,6 +321,7 @@
         );
       }
     }
+    selection.excludedFlags = excludedFlags;
     return selection;
   }
 
@@ -470,9 +489,18 @@
   function renderFeatureConfigResult() {
     const selection = state.buildSelection;
     const warningCount = selection.warnings.length;
-    featureConfigResult.textContent = `${selection.enabledCount} built · ${selection.disabledCount} not built · ${selection.implicitCount} implicit${warningCount ? ` · ${warningCount} warning${warningCount === 1 ? "" : "s"}` : ""}`;
-    featureConfigResult.title = selection.warnings.join("\n");
-    featureConfigResult.classList.toggle("has-warnings", selection.warnings.length > 0);
+    const excludedCount = selection.excludedFlags.length;
+    featureConfigResult.textContent = `${selection.enabledCount} built · ${selection.disabledCount} not built · ${selection.implicitCount} implicit${warningCount ? ` · ${warningCount} warning${warningCount === 1 ? "" : "s"}` : ""}${excludedCount ? ` · ${excludedCount} flag${excludedCount === 1 ? "" : "s"} not included` : ""}`;
+    featureConfigResult.title = [
+      ...selection.warnings,
+      ...selection.excludedFlags.map(
+        ({ flag, reason }) => `${flag}: ${reason}`,
+      ),
+    ].join("\n");
+    featureConfigResult.classList.toggle(
+      "has-warnings",
+      warningCount > 0 || excludedCount > 0,
+    );
   }
 
   function layoutGraph() {
@@ -915,6 +943,23 @@
       </section>`;
   }
 
+  function excludedFlagsMarkup() {
+    const excludedFlags = state.buildSelection.excludedFlags;
+    if (excludedFlags.length === 0) {
+      return "";
+    }
+    return `
+      <section class="detail-section excluded-flags">
+        <h3>Flags not included (${excludedFlags.length})</h3>
+        <ul class="preview-notes">${excludedFlags
+          .map(
+            ({ flag, reason }) =>
+              `<li><code>${escapeHtml(flag)}</code> — ${escapeHtml(reason)}</li>`,
+          )
+          .join("")}</ul>
+      </section>`;
+  }
+
   function renderBuildSelectionOverview() {
     const results = [...state.buildSelection.artifacts.values()];
     const built = results.filter((result) => result.enabled);
@@ -922,8 +967,9 @@
     detailsContent.innerHTML = `
       <span class="detail-kind build-selection">Feature preview</span>
       <h3 class="detail-title">Build selection</h3>
-      <p class="detail-description">Fresh ${escapeHtml(platformDisplayName())} x86_64 configuration evaluated from <code>THEROCK_ENABLE_*</code> flags.</p>
+      <p class="detail-description">Fresh ${escapeHtml(platformDisplayName())} x86_64 configuration evaluated from supported <code>THEROCK_ENABLE_*</code> and <code>THEROCK_FLAG_*</code> flags.</p>
       ${previewWarningsMarkup()}
+      ${excludedFlagsMarkup()}
       <section class="detail-section">
         <h3>Components to build (${built.length})</h3>
         <ul class="relationship-list component-result-list">${componentResultList(built)}</ul>
@@ -969,6 +1015,7 @@
       <h3 class="detail-title">${escapeHtml(node.name)}</h3>
       ${node.description ? `<p class="detail-description">${escapeHtml(node.description)}</p>` : ""}
       ${previewWarningsMarkup()}
+      ${excludedFlagsMarkup()}
       <section class="detail-section build-selection-status build-${escapeHtml(buildState.status)}">
         <h3>Feature selection</h3>
         <p>${buildSelection}</p>

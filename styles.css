@@ -770,6 +770,17 @@ button {
   color: #6e4b00;
 }
 
+.excluded-flags {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.65rem 0.75rem;
+  background: var(--surface-raised);
+}
+
+.excluded-flags code {
+  overflow-wrap: anywhere;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
