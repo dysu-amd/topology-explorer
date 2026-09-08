@@ -204,7 +204,7 @@
       ) {
         excludedFlags.push({
           flag: token,
-          reason: "This flag is not included in the topology preview logic.",
+          reason: "",
         });
         continue;
       }
@@ -267,23 +267,23 @@
       ? defaultSelection.artifacts.get(artifact.name)
       : null;
     if (result?.status === "unavailable") {
-      return `${name}=${value ? "ON" : "OFF"} has no effect on the final artifact selection because ${artifact.name} is not supported on ${platformDisplayName()}.`;
+      return `${name}=${value ? "ON" : "OFF"} has no effect: ${artifact.name} is not supported on ${platformDisplayName()}.`;
     }
     if (value && result?.requiredBy.size > 0) {
       const requiredBy = [...result.requiredBy].sort().join(", ");
-      return `${name}=ON has no effect on the final artifact selection because ${artifact.name} is enabled by ${requiredBy}.`;
+      return `${name}=ON has no effect: ${artifact.name} is enabled by ${requiredBy}.`;
     }
     if (value && defaultResult?.enabled) {
-      return `${name}=ON has no effect on the final artifact selection because ${artifact.name} is enabled by default.`;
+      return `${name}=ON has no effect: ${artifact.name} is enabled by default.`;
     }
     if (value && comparisonResult?.enabled) {
-      return `${name}=ON has no effect on the final artifact selection because ${artifact.name} is already enabled elsewhere.`;
+      return `${name}=ON has no effect: ${artifact.name} is already enabled elsewhere.`;
     }
     if (!value && result?.enabled && result.requiredBy.size > 0) {
       const requiredBy = [...result.requiredBy].sort().join(", ");
       return `${name}=OFF has no effect: ${artifact.name} remains enabled because ${requiredBy} requires it.`;
     }
-    return `${name}=${value ? "ON" : "OFF"} has no effect on the final artifact selection.`;
+    return `${name}=${value ? "ON" : "OFF"} has no effect: the final artifact selection is unchanged.`;
   }
 
   function evaluateBuildSelection(input) {
@@ -292,7 +292,7 @@
       if (!isModeledFeatureFlag(name)) {
         excludedFlags.push({
           flag: `-D${name}=${value ? "ON" : "OFF"}`,
-          reason: "This flag is not included in the topology preview logic.",
+          reason: "",
         });
         flags.delete(name);
       }
@@ -494,7 +494,7 @@
     featureConfigResult.title = [
       ...selection.warnings,
       ...selection.excludedFlags.map(
-        ({ flag, reason }) => `${flag}: ${reason}`,
+        ({ flag, reason }) => reason ? `${flag}: ${reason}` : flag,
       ),
     ].join("\n");
     featureConfigResult.classList.toggle(
@@ -954,7 +954,7 @@
         <ul class="preview-notes">${excludedFlags
           .map(
             ({ flag, reason }) =>
-              `<li><code>${escapeHtml(flag)}</code> — ${escapeHtml(reason)}</li>`,
+              `<li><code>${escapeHtml(flag)}</code>${reason ? ` — ${escapeHtml(reason)}` : ""}</li>`,
           )
           .join("")}</ul>
       </section>`;
