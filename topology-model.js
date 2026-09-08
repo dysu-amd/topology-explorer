@@ -4,6 +4,24 @@
 
   const withDefaults = (fields, defaults) => ({ ...defaults, ...fields });
 
+  function isArtifactUnavailableOnPlatform(fields, platform, flags = new Map()) {
+    if (
+      (fields.platform && fields.platform !== platform) ||
+      (fields.disable_platforms ?? []).includes(platform)
+    ) {
+      return true;
+    }
+    const requiredFlag = fields.disable_platforms_if_flags_not_set?.[platform];
+    return Boolean(requiredFlag && !flags.get(`THEROCK_FLAG_${requiredFlag}`));
+  }
+
+  function featureGroupDefaultRule(group, platform, defaults) {
+    if (group === "CV_LIBS" && platform === "windows") {
+      return false;
+    }
+    return defaults[group];
+  }
+
   function topologyToGraph(topology, sourceFile) {
     const nodes = [];
     const edges = [];
@@ -124,4 +142,9 @@
   }
 
   globalThis.topologyToGraph = topologyToGraph;
+  globalThis.topologyModel = Object.freeze({
+    featureGroupDefaultRule,
+    isArtifactUnavailableOnPlatform,
+    topologyToGraph,
+  });
 })();

@@ -76,6 +76,9 @@
   };
   const ALL_NODE_KINDS = Object.keys(NODE_KIND_LABELS);
   const ALL_EDGE_KINDS = Object.keys(EDGE_KIND_LABELS);
+  const MODELED_BUILD_FLAGS = new Set([
+    "THEROCK_FLAG_HSA_WINDOWS_SHARED_RUNTIME",
+  ]);
   const FEATURE_GROUP_DEFAULTS = Object.freeze({
     ALL: true,
     CORE: "ALL",
@@ -191,7 +194,10 @@
     const warnings = [];
     const tokens = input.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? [];
     for (const token of tokens) {
-      if (!token.startsWith("-DTHEROCK_ENABLE_")) {
+      if (
+        !token.startsWith("-DTHEROCK_ENABLE_") &&
+        !token.startsWith("-DTHEROCK_FLAG_")
+      ) {
         continue;
       }
       const assignment = token.slice(2);
@@ -224,7 +230,8 @@
       artifactNodes.some(
         (artifact) => name === `THEROCK_ENABLE_${featureNameForArtifact(artifact)}`,
       ) ||
-      Object.hasOwn(FEATURE_GROUP_DEFAULTS, name.replace("THEROCK_ENABLE_", ""))
+      Object.hasOwn(FEATURE_GROUP_DEFAULTS, name.replace("THEROCK_ENABLE_", "")) ||
+      MODELED_BUILD_FLAGS.has(name)
     );
   }
 
@@ -291,10 +298,20 @@
       let value;
       if (flags.has(optionName)) {
         value = flags.get(optionName);
-      } else if (FEATURE_GROUP_DEFAULTS[group] === "ALL") {
+      } else if (
+        topologyModel.featureGroupDefaultRule(
+          group,
+          state.previewPlatform,
+          FEATURE_GROUP_DEFAULTS,
+        ) === "ALL"
+      ) {
         value = getGroupValue("ALL");
       } else if (Object.hasOwn(FEATURE_GROUP_DEFAULTS, group)) {
-        value = FEATURE_GROUP_DEFAULTS[group];
+        value = topologyModel.featureGroupDefaultRule(
+          group,
+          state.previewPlatform,
+          FEATURE_GROUP_DEFAULTS,
+        );
       } else {
         value = false;
         warnings.push(`No default rule is modeled for feature group ${group}.`);
@@ -309,9 +326,11 @@
       const featureGroup = featureGroupForArtifact(artifact);
       const optionName = `THEROCK_ENABLE_${featureName}`;
       const isExplicit = flags.has(optionName);
-      const isPlatformUnavailable =
-        (artifact.fields.platform && artifact.fields.platform !== state.previewPlatform) ||
-        (artifact.fields.disable_platforms ?? []).includes(state.previewPlatform);
+      const isPlatformUnavailable = topologyModel.isArtifactUnavailableOnPlatform(
+        artifact.fields,
+        state.previewPlatform,
+        flags,
+      );
       const isEnabled = isPlatformUnavailable
         ? false
         : isExplicit

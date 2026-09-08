@@ -99,3 +99,41 @@ test("the latest topology covers every graph relationship and platform field", a
     "expected at least one Windows-only artifact",
   );
 });
+
+test("conditional Windows availability follows TheRock topology flags", async () => {
+  const { source } = await topology;
+  const parsed = plain(browser.parseTopologyToml(source));
+  const coreRuntime = parsed.artifacts["core-runtime"];
+  assert.equal(
+    coreRuntime.disable_platforms_if_flags_not_set.windows,
+    "HSA_WINDOWS_SHARED_RUNTIME",
+  );
+  assert.equal(
+    browser.topologyModel.isArtifactUnavailableOnPlatform(
+      coreRuntime,
+      "windows",
+      new Map(),
+    ),
+    true,
+  );
+  assert.equal(
+    browser.topologyModel.isArtifactUnavailableOnPlatform(
+      coreRuntime,
+      "windows",
+      new Map([["THEROCK_FLAG_HSA_WINDOWS_SHARED_RUNTIME", true]]),
+    ),
+    false,
+  );
+});
+
+test("CV libraries default off on Windows and follow ALL on Linux", () => {
+  const defaults = { ALL: true, CV_LIBS: "ALL" };
+  assert.equal(
+    browser.topologyModel.featureGroupDefaultRule("CV_LIBS", "windows", defaults),
+    false,
+  );
+  assert.equal(
+    browser.topologyModel.featureGroupDefaultRule("CV_LIBS", "linux", defaults),
+    "ALL",
+  );
+});

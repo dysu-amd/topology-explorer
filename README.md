@@ -47,8 +47,9 @@ therefore required when running the suite.
 
 ## CMake feature preview
 
-Paste one or more `-DTHEROCK_ENABLE_*=ON|OFF` flags into the feature panel to
-see the artifact components that the topology selects. Use the platform toggle
+Paste one or more `-DTHEROCK_ENABLE_*=ON|OFF` flags or topology-related
+`-DTHEROCK_FLAG_*=ON|OFF` flags into the feature panel to see the artifact
+components that the topology selects. Use the platform toggle
 to compare fresh Linux and Windows x86_64 configurations. The preview applies
 TheRock's current feature-group defaults, explicit artifact feature flags, and
 the implicit artifact dependency closure performed by
