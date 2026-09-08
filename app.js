@@ -235,7 +235,13 @@
     );
   }
 
-  function ineffectiveFlagWarning(name, value, selection, comparison) {
+  function ineffectiveFlagWarning(
+    name,
+    value,
+    selection,
+    comparison,
+    defaultSelection,
+  ) {
     const artifact = artifactNodes.find(
       (candidate) => name === `THEROCK_ENABLE_${featureNameForArtifact(candidate)}`,
     );
@@ -243,14 +249,20 @@
     const comparisonResult = artifact
       ? comparison.artifacts.get(artifact.name)
       : null;
+    const defaultResult = artifact
+      ? defaultSelection.artifacts.get(artifact.name)
+      : null;
     if (result?.status === "unavailable") {
       return `${name}=${value ? "ON" : "OFF"} has no effect on the final artifact selection because ${artifact.name} is not supported on ${platformDisplayName()}.`;
     }
-    if (
-      value &&
-      state.previewPlatform === "linux" &&
-      comparisonResult?.enabled
-    ) {
+    if (value && result?.requiredBy.size > 0) {
+      const requiredBy = [...result.requiredBy].sort().join(", ");
+      return `${name}=ON has no effect on the final artifact selection because ${artifact.name} is enabled by ${requiredBy}.`;
+    }
+    if (value && defaultResult?.enabled) {
+      return `${name}=ON has no effect on the final artifact selection because ${artifact.name} is enabled by default.`;
+    }
+    if (value && comparisonResult?.enabled) {
       return `${name}=ON has no effect on the final artifact selection because ${artifact.name} is already enabled elsewhere.`;
     }
     if (!value && result?.enabled && result.requiredBy.size > 0) {
@@ -268,6 +280,7 @@
       }
     }
     const selection = resolveBuildSelection(flags, warnings);
+    const defaultSelection = resolveBuildSelection(new Map(), []);
     for (const [name, value] of flags) {
       if (!isModeledFeatureFlag(name)) {
         continue;
@@ -280,7 +293,13 @@
       );
       if (!hasEffect) {
         warnings.push(
-          ineffectiveFlagWarning(name, value, selection, comparison),
+          ineffectiveFlagWarning(
+            name,
+            value,
+            selection,
+            comparison,
+            defaultSelection,
+          ),
         );
       }
     }
